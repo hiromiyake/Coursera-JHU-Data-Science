@@ -1,0 +1,206 @@
+# Reproducible Research Project 1
+
+## Loading and preprocessing the data
+
+#### 1. Load the data
+
+```{r}
+df = read.csv("activity.csv")
+dforiginal = df
+```
+
+#### 2. Process the data into a format suitable for the analysis.
+
+Make a new column where I convert the original date characters in the data frame to date type.
+
+```{r}
+df$datetype = strptime(df$date, "%Y-%m-%d")
+```
+
+Make a new column where the original interval value is converted to consecutive multiples of 5 so that the numbers go from 0 to 1435, which corresponds to 00:00 to 23:55. The function determines the value of the input modulo 288, which corresponds to 60*24/5, which is the total number of 5 minute intervals in a day, then multiplies it by 5 to get the time in minutes. For example, this then creates a new column where the original interval value of 100 corresponds to the new value of 60.
+
+```{r}
+intervalnorm = function(x) {
+  5*(x%%288)
+}
+rowvec = 0:(nrow(df) - 1)
+df$intervalnorm = sapply(rowvec, intervalnorm)
+```
+
+## What is the mean total number of steps taken per day?
+
+#### 1. Calculate the total number of steps taken per day.
+
+We ignore NAs.
+
+```{r}
+stepsum = tapply(df$steps, df$date, sum, na.rm = TRUE)
+stepsum
+```
+
+#### 2. Histogram of the total number of steps taken each day.
+
+```{r}
+par(mar=c(5.0,4.0,1.0,2.0))
+hist(stepsum,
+     breaks = 10,
+     main = NULL,
+     xlab = "Total Number of Steps Taken in a Day", 
+     col = "blue",
+     xlim = c(0, 25000),
+     ylim = c(0, 20))
+```
+
+#### 3. Calculate the mean and median of the total number of steps taken per day.
+
+The mean number of steps over all days can be found as below and is found to be **9354** steps per day.
+
+```{r}
+mean(stepsum)
+```
+
+The median number of steps over all days can be found as below and is found to be **10395** steps per day.
+
+```{r}
+median(stepsum)
+```
+
+## What is the average daily activity pattern?
+
+#### 1. Make a time series plot of the 5-minute interval and the average number of steps taken, averaged across all days
+
+First I calculate the average steps taken per day by interval. Then I plot the time series.
+
+```{r}
+stepavg = tapply(df$steps, df$intervalnorm, mean, na.rm = TRUE)
+plot(unique(df$intervalnorm)/60, stepavg,
+     type = "l",
+     xlab = "Time of Day (Hour)",
+     ylab = "Average Steps Taken per 5 Minute Interval")
+```
+
+#### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+First, I determine what the maximum number of steps on average is. Then I figure out in which time interval this occured by using the which.max function. Then I multiply that by 5, and take the value modulo 60, which gives me the minutes of the interval, and integer division by 60, which gives me the hour of the interval.
+
+```{r}
+max(stepavg)
+maxint5 = (which.max(stepavg)[[1]] - 1)*5
+maxint5%/%60
+maxint5%%60
+```
+
+The time interval **08:35** contains the maximum average number of steps of 206.17.
+
+## Imputing missing values
+
+#### 1. Calculate and report the total number of missing values in the dataset (i.e., the total number of rows with NAs).
+
+The total number of rows with NA can be found by using the complete.cases function as follows.
+
+```{r}
+nrow(df) - sum(complete.cases(dforiginal))
+```
+
+This gives us **2304** number of rows with NA.
+
+#### 2. Devise a strategy for filling in all of the missing values in the dataset.
+
+I will fill in the missing values in the data set by using the average value over all days in that time interval.
+
+#### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r}
+stepavg2 = aggregate(list(df$steps), list(df$intervalnorm), mean, na.rm = TRUE)
+names(stepavg2) = c("interval","avgstep")
+df2 = df
+rowvec = 0*(1:nrow(df2))
+for (i in 1:nrow(df2)) {
+  if (is.na(df2$steps[i])) {
+    df2$steps[i] = stepavg2$avgstep[df2$intervalnorm[i]/5 + 1]
+  }
+}
+```
+
+#### 4. Make a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day.
+
+```{r}
+stepsum2 = tapply(df2$steps, df2$date, sum, na.rm = TRUE)
+par(mar=c(5.0,4.0,1.0,2.0))
+hist(stepsum2,
+     breaks = 10,
+     main = NULL,
+     xlab = "Total Number of Steps Taken in a Day", 
+     col = "blue",
+     xlim = c(0, 25000),
+     ylim = c(0, 25))
+```
+
+
+The mean number of steps over all days can be found as below and is found to be **10766** steps per day.
+
+```{r}
+mean(stepsum2)
+```
+
+The median number of steps over all days can be found as below and is found to be **10766** steps per day.
+
+```{r}
+median(stepsum2)
+```
+
+Imputing missing values increases both the mean and the median from the case of leaving values as NA.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+#### 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r}
+weekvar = weekdays(df2$datetype)
+df2$week = weekvar
+
+weekdayend = function(x) {
+  if (x == "Saturday" | x == "Sunday") {
+    y = "weekend"
+  }
+  else {
+    y = "weekday"
+  }
+  y
+}
+
+weekdayendvar = sapply(weekvar, weekdayend)
+weekdayendvar2 = factor(weekdayendvar)
+
+df2$weekday = weekdayendvar2
+summary(df2$weekday)
+```
+
+#### 2. Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r}
+df2day = subset(df2, weekday == "weekday")
+df2end = subset(df2, weekday == "weekend")
+
+stepavgday = aggregate(list(df2day$steps), list(df2day$intervalnorm), mean, na.rm = TRUE)
+names(stepavgday) = c("interval","avgstep")
+stepavgend = aggregate(list(df2end$steps), list(df2end$intervalnorm), mean, na.rm = TRUE)
+names(stepavgend) = c("interval","avgstep")
+
+par(mfcol = c(1, 2))
+plot(unique(df2$intervalnorm)/60, stepavgday$avgstep,
+     type = "l",
+     xlab = "Time of Day (Hour)",
+     ylab = "Average Steps",
+     ylim = c(0, 250),
+     main = "Weekday")
+
+plot(unique(df2$intervalnorm)/60, stepavgend$avgstep,
+     type = "l",
+     xlab = "Time of Day (Hour)",
+     ylab = "Average Steps",
+     ylim = c(0, 250),
+     main = "Weekend")
+```
+
+There are more steps taken in the morning on weekdays than weekends. There are more steps in the afternoon and more evenly distributed on weekends.
