@@ -1,0 +1,47 @@
+---
+title: "Exponential Distribution Simulation"
+author: "Hiro Miyake"
+date: "September 21, 2016"
+output: pdf_document
+---
+
+## Overview
+
+In this report I investigate the exponential distribution in R and compare it with the central limit theorem.
+
+## Simulation
+
+Theoretically it is known that the mean of an exponential distribution is 1/$\lambda$ and the standard deviation is 1/$\lambda$. For the purposes of my analysis I set $\lambda = 0.2$. I also set the seed for reproducibility. I gather values taken from the exponential distribution a thousand times and call it `randomexp`. Then I determine the distribution of averages of 40 exponentials by performing a thousand simulations and call it `mns`.
+
+```{r}
+lambda = 0.2
+set.seed(1)
+randomexp = rexp(1000, lambda)
+mns = NULL
+for (i in 1 : 1000) mns = c(mns, mean(rexp(40, lambda)))
+```
+
+## Distribution
+
+The distribution of one thousand random exponentials and the average of 40 exponentials for a thousand simulations are visually shown in the histogram below to the left and right respectively.
+
+```{r}
+par(mfrow=c(2,2))
+hist(randomexp, xlab = "", main = "Random Exponentials")
+hist(mns, xlab = "Mean", main = "Mean of 40 Exponentials")
+```
+
+Note that the distribution of a large collection of random exponentials (left) just reproduces the original exponential distribution. But the mean of 40 exponentials (right) looks more like a Gaussian distribution, which we can tell from its bell-shaped curve and symmetry about the mean.
+
+## Simulated exponential distribution
+
+First examining the random exponential distribution `randomexp` (left histogram), `r mean(randomexp)` is the mean of the exponential distribution given by `mean(randomexp)`, and `r var(randomexp)` is the variance of the exponential distribution given by `var(randomexp)`. Both of these values are in good agreement with the expected behavior of an exponential distribution with $\lambda = 0.2$ ($1/\lambda = 5$ and $1/\lambda^2 = 25$ respectively).
+
+## Comparison of sample and theoretical mean and variance
+
+Next, by examining the distribution of the average of 40 exponentials `mns` (right histogram), the mean is theoretically expected to be $1/\lambda =$ **5**, which is in good agreement with the simulation mean of **`r mean(mns)`** given by `mean(mns)`. The variance of the mean distribution is theoretically expected to be $1/\lambda^2/40 =$ **0.625** for the average of 40 exponentials, so this is also in good agreement with the simulation variance of **`r var(mns)`** given by `var(mns)`.
+
+## Conclusion
+
+The mean of the exponential distribution can be well-described by a Gaussian distribution centered about $1/\lambda$ with variance $\sigma^2/N$ where $\sigma = 1/\lambda$, in good agreement with the central limit theorem.
+
