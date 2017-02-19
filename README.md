@@ -2,7 +2,7 @@ This repo contains files I created for Coursera Johns Hopkins University Data Sc
 
 https://www.coursera.org/specializations/jhu-data-science
 
-Relevant course files can be found at:
+Related course files can be found at:
 
 https://github.com/bcaffo/courses
 
