@@ -1,0 +1,114 @@
+---
+title: "Natural Language Processing Milestone Report: Data Science Capstone"
+author: "Hiro Miyake"
+date: "November 20, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In this R Markdown document, I perform exploratory analysis on three different types of text data, all in the English language: a collection of tweets from Twitter, a collection of blog posts, and a collection of news snippets. The goal is to gain some basic understanding of the structure of the data in order to build a predictive, Natural Language Processing (NLP) algorithm.
+
+## Data Ingestion and Basic Summaries
+
+First, I read in the three text files stored locally on my computer.
+
+```{r, cache=TRUE, warning=FALSE}
+twitter = readLines("final/en_US/en_US.twitter.txt")
+blogs = readLines("final/en_US/en_US.blogs.txt")
+news = readLines("final/en_US/en_US.news.txt")
+```
+
+Then I check how many lines there are in each of the three files. I will output these later for examination.
+
+```{r, cache=TRUE}
+basicsummary = data.frame(linecount = c(length(twitter), length(blogs), length(news)))
+row.names(basicsummary) = c("twitter","blogs","news")
+```
+
+Now I check the word count in each line, as well as the average word count over the total line count. As a quick and simple approach, I do this by splitting each line by single white spaces to get the word count in each line. Note that this assumes each word is separated by a single white space, so if there are more than a single white space between two words, or if there are white spaces before (after) the main text starts (ends), my method will overcount the number of words. Another possible error is that an author mistakenly omits a space between two words, which will lead to undercounting with my method. In general I suspect the former is more likely than the latter, and so my method will overall be an overestimate of the actual word count. Nonetheless, I assume such formating errors to be reasonably rare.
+
+```{r, cache=TRUE}
+twitter_wc = sapply(strsplit(twitter, " "), length)
+blogs_wc = sapply(strsplit(blogs, " "), length)
+news_wc = sapply(strsplit(news, " "), length)
+
+basicsummary$wordcount = c(sum(twitter_wc), sum(blogs_wc), sum(news_wc))
+basicsummary$wordcountsd = c(sd(twitter_wc), sd(blogs_wc), sd(news_wc))
+basicsummary$wordsperline = c(mean(twitter_wc), mean(blogs_wc), mean(news_wc))
+basicsummary$maxwordcount = c(max(twitter_wc), max(blogs_wc), max(news_wc))
+basicsummary$minwordcount = c(min(twitter_wc), min(blogs_wc), min(news_wc))
+
+basicsummary
+```
+
+We see that tweets have fewer words per line (13 words per line) than both blogs and news articles, as I would have expected from the limitation on the number of characters for a single tweet (140 characters to be precise). The medium with the most words are blogs with 42 words per line.
+
+Also note that for all three data sets the standard deviation of word counts is comparable to the mean word count. In particular, the standard deviation is larger than the mean word count for blogs. It is of course impossible to have less than 0 word counts, so this means that there is a huge variation in word counts across different lines and the distributions are most likely far from Gaussian.
+
+## Exploratory Analysis
+
+Now I dig a little deeper by performing exploratory analyses.
+
+#### How many characters do people use on Twitter?
+
+As we observed above, tweets tend to have the fewest words per line of the three data sets, most likely due to the 140 character limitation. Let us look at the number of times a particular tweet has a certain number of characters. This can be seen by plotting a histogram of the total number of characters used in each tweet.
+
+```{r, cache=TRUE}
+t_nchar = data.frame(numchar = nchar(twitter))
+max(t_nchar$numchar)
+library(ggplot2)
+ggplot(data=t_nchar, aes(t_nchar$numchar)) + 
+  geom_histogram(breaks=seq(0, 150, by=1)) +
+  labs(title = "Histogram of Character Counts of Tweets", x = "Number of Characters", y = "Counts") +
+  scale_x_continuous(breaks = seq(0, 150, by = 10))
+```
+
+As we expected from the official Twitter rules, the longest tweets have 140 characters. What is more interesting is the distribution of tweets as a function of character counts. There is an initial broad peak around 30 characters, followed by a shallow decline, then a sharp peak at around 123 characters, then a dip at around 133 characters, with the highest and sharpest peak at 140 characters. The distribution possibly represents both natural and artificial causes.
+
+The peak at 140 characters is almost certainly not something intrinsic to the English language, but is rather set by Twitter rules. For example, if one is writing a tweet which goes over 140 characters, they will probably cut back on the number of characters until they reach 140. The peak around 123 and dip around 133 characters is somewhat more mysterious and I have no good explanation. The peak around 30 characters and the subsequent shallow decline is probably closer to the distribution of what a naturally written English sentence would look like.
+
+#### What is the distribution of the number of words for each data set?
+
+I now go back to the processed data to plot histograms for the number of words per line for the Twitter, blogs, and news data set.
+
+```{r, cache=TRUE}
+t_df = as.data.frame(twitter_wc)
+ggplot(data=t_df, aes(t_df$twitter_wc)) + 
+  geom_histogram(breaks=seq(0, 40, by=1)) +
+  labs(title = "Histogram of Word Counts of Tweets", x = "Word Count", y = "Counts")
+```
+
+We see that the histogram of word counts of tweets is more continuous than the character count of tweets. There is an intial increase in word counts peaking at about 6 words, and then gradually decreases, until it reaches about 20 words, and then decreases more rapidly. The maximum word count in this data set is 47, but this histogram captures most of the data.
+
+```{r, cache=TRUE}
+b_df = as.data.frame(blogs_wc)
+ggplot(data=b_df, aes(b_df$blogs_wc)) + 
+  geom_histogram(breaks=seq(0, 300, by=1)) +
+  labs(title = "Histogram of Word Counts of Blogs", x = "Word Count", y = "Counts") +
+  scale_x_continuous(breaks = seq(0, 300, by = 25))
+```
+
+Similar to the Twitter word count histogram, there is a rapid intial peaking in word count, with a rapid decrease until about 40 words, and then a slower decrease in word count. The maximum word count in this data set is 6630, but this histogram captures most of the data.
+
+```{r, cache=TRUE}
+n_df = as.data.frame(news_wc)
+ggplot(data=n_df, aes(n_df$news_wc)) + 
+  geom_histogram(breaks=seq(0, 200, by=1)) +
+  labs(title = "Histogram of Word Counts of News", x = "Word Count", y = "Counts") +
+  scale_x_continuous(breaks = seq(0, 200, by = 25))
+```
+
+The news data set has a double peaked structure, one which is narrow and has few words and another which is broad and peaks at around 30 words, which is different from the previous two data sets.
+
+Thus we see that all three data sets have different distributions of word counts.
+
+## Next Steps Toward Building a Word Prediction Algorithm
+
+I have presented here some broad exploratory analyses of the three data sets. The major next step is to go into further detail on the distribution of individual as well as collections of words in the data sets.
+
+The first step will involve standardizing the data, which will include converting all characters to lower case letters, removing punctuation, removing stop words (i.e., words that have little meaning in sentences, such as "a" and "the"), and stemming the words (e.g., convert "cars" to "car"). From there, I can start to study the frequencies of each word or a collection of words appearing in the data. That should provide a good basis to start predicting words.
