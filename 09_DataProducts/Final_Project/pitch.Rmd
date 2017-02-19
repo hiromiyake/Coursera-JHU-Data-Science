@@ -1,0 +1,43 @@
+---
+title: "Shiny App to Predict Orange Tree Growth"
+author: "Hiro Miyake"
+date: "October 30, 2016"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Why Predict Orange Tree Growth?
+
+- The size of an orange tree is most likely related to the quality and quantity of the oranges that grow from that tree
+- Being able to predict when an orange tree will be a particular size may help to optimize when to harvest the oranges from a particular tree
+- This could lead to tastier oranges and more income for the orange growers
+- Thus this app could help orange growers with their business
+
+## What Does the App Do?
+
+- There is a slider which the user can specify the day to predict the tree circumference
+- The user has the option to display or hide the linear model in the plot for each tree
+- The plot displays the original data from the `Orange` data set and the linear fits depending on the users preference
+- Predictions of the orange tree circumference are given for the user-specified date for each of the five orange trees
+- Although the data exists only up until about day 1600, the app allows you to extrapolate the circumference up to day 2000 assuming a linear relationship
+
+## How to Predict Orange Tree Growth?
+
+- I use the `Orange` data set in R
+- The data set describes the `circumference` (in mm) and the `age` (in days since 1968/12/31) for five different orange trees
+- I perform a linear regression to predict the circumference in terms of days for each of the five trees
+- Limitation of this approach is that it assumes the trees will grow linearly indefinitely, even though most likely that is not true
+- Therefore the user should be cautious in using this app too many days beyond where data exists
+
+## Orange Tree Growth Data
+
+```{r, echo=FALSE,message=FALSE, include = FALSE}
+library(plotly)
+```
+
+```{r, echo=FALSE,message=FALSE}
+plot_ly(Orange, x = age, y = circumference, mode = "markers", color = as.factor(Tree), xlab = "Age")
+```
