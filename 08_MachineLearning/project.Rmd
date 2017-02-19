@@ -1,0 +1,130 @@
+---
+title: "Coursera Applied Machine Learning Project"
+author: "Hiro Miyake"
+date: "October 25, 2016"
+output: html_document
+---
+
+## Summary
+
+This document describes an analysis to predict a categorical outcome given numerous predictors. Surprisingly, there is a single predictor which predicts the outcome perfectly, and this is the predictor `num_window`. Cross validation is performed by splitting the original training set into 75% sub-training set and 25% validation set. The out-of-sample error is zero. The prediction model requires no complicated machine learning techniques, however, there are potentially serious limitations if provided a more realistic data set.
+
+## Introduction
+
+The goal of this analysis is to predict a categorical outcome with five levels `A`, `B`, `C`, `D`, and `E` which correspond to whether an exercise was performed correctly or not given numerous predictors which were obtained through a wearable device. More details on the data set is provided at <http://groupware.les.inf.puc-rio.br/har>.
+
+## Exploratory Analysis
+
+The training and testing data sets are obtained from <https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv> and <https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv> respectively. First we load the training and test sets into R.
+
+```{r}
+train = read.csv("pml-training.csv")
+test = read.csv("pml-testing.csv")
+dim(train)
+```
+
+We see that in the training set there are 19622 rows of data with 159 predictors (since one of the columns is the outcome). This seems like quite an intimidating number of predictors.
+
+Before we go further, let us divide the training set further by taking 75% as the sub-training set and 25% as the validation set. This will be used for a simple cross validation later.
+
+```{r,message=FALSE,warning=FALSE}
+library(caret)
+set.seed(1000)
+train.index <- createDataPartition(train$classe, p = .75, list = FALSE)
+trains <- train[ train.index,]
+trainv  <- train[-train.index,]
+```
+
+First, let us examine the distribution of outcomes given by the column `classe` in the sub-training set.
+
+```{r}
+table(trains$classe)
+```
+
+It appears the outcomes are relatively evenly distributed.
+
+Now let us take a look at the relationship between the outcome and row index given by the predictor `X` through a scatter plot.
+
+```{r}
+plot(trains$X,trains$classe)
+```
+
+The above plot shows that the ordering of the rows in the data are highly correlated with the outcome. This may seem like great news for prediction purposes, but it turns out that this is simply the row index, and the test set data values for the predictor `X` also goes simply from 1 to 20 as shown below, so this predictor is most likely useless for prediction purposes.
+
+```{r}
+test$X
+```
+
+However, we now look at the value of the predictors `num_window` by `X` and outcome of the sub-training set, which is more insightful.
+
+```{r}
+qplot(trains$X,trains$num_window, color = trains$classe)
+```
+
+It is not immediately obvious that there is a correlation between `num_window` and the outcome. However if you look closely, it appears that any given value of `num_window` corresponds to only one outcome. This can also be checked by looking at a table of outcome versus `num_window` value.
+
+```{r}
+tableon = table(trains$classe,trains$num_window)
+tableon[,1:24]
+```
+
+The first 24 columns of the table indeed indicate that each `num_window` corresponds to only one outcome. Furthermore, the number of possible values for `num_window` (about 875) is much less than the number of data points in the data set provided (19622 for the full training set), so we should not require the full training set to obtain the necessary information to make predictions.
+
+Also, by looking the at the `num_window` values of the test set below, we can be confident that this predictor is not directly correlated with the row index as was the case for `X` and so any correlation of `num_window` with the outcome is most likely non-trivial.
+
+```{r}
+test$num_window
+```
+
+## Model Building
+
+We will build the prediction model in the following way. First, we take the table created above of outcome versus `num_window` from the sub-training set and make a lookup table indicating which `num_window` corresponds to which outcome. Once we have this lookup table, for any new data we are presented with, we can look at its `num_window` value, look up the corresponding outcome in the lookup table, and assign that value as the outcome for that new data.
+
+For example, taking the table shown above, if a row has `num_window` of 1, then we assign an outcome of `E`. If a row has `num_window` of 11, then we assign an outcome of `A`. If a row has `num_window` of 19, then we assign an outcome of `D`. And so on.
+
+```{r}
+numwintable = tableon
+numwinlookup = colnames(numwintable)
+classelookup = vector(mode="character", length=ncol(numwintable))
+classenum = c("A","B","C","D","E")
+for (i in 1:ncol(numwintable)) {
+  for (j in 1:5) {
+    if (numwintable[j,i] != 0) {
+      classelookup[i] = classenum[j]
+      break
+    }
+  }
+}
+```
+
+Now our lookup table is complete and is `classelookup` in the code above. Then we make a function `numwintoclasse` which makes use of the lookup table provided a `num_window` and outputs a predicted `classe`.
+
+```{r}
+numwintoclasse = function(x) {
+  classelookup[match(x,numwinlookup)]
+}
+```
+
+## Cross Validation and Out-Of-Sample Error
+
+Now we take our prediction routine and apply it to the validation set we created from the original training set. This will allow us to test the validity of our prediction model.
+
+```{r}
+valpred = sapply(trainv$num_window,numwintoclasse)
+```
+
+Then we can compare it against the actual `classe` values to obtain an out-of-sample error for our prediction model.
+
+```{r}
+sum(trainv$classe == valpred)/nrow(trainv)
+```
+
+This value is one, which means we correctly predicted the outcome for all rows in the validation set. This implies the out-of-sample error is essentially zero.
+
+Applying this prediction model to the test set leads to the same predictions as those obtained by a random forest model with many more predictors (not disucssed here) and apparently leads to correct predictions, which increases confidence in the validity of the approach presented here for the data sets presented.
+
+## Conclusions and Limitations
+
+Prediction on the validation data set with our model suggests our model is very effective at predicting the correct outcome. This is a very powerful approach, as you do not need to run time consuming training models, and illustrates clearly the benefit of performing exploratory analysis before blindly applying complicated machine learning algorithms to your problem at hand.
+
+However, the prediction model I outlined here does have its limiations. In particular, the model assumes that the training set contains all possible values of `num_window`. If we are presented with a new data set which contains a `num_window` value not seen in the training set, then we cannot make any prediction on the outcome for that data. More realistically, the data provided has this very clear pattern most likely simply because of the way the data is arranged. Our prediction model will most likely not work well with data gathered in the field at the consumer level, which will not have this artifact of data arrangement.
