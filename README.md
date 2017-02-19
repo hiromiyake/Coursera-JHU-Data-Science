@@ -3,4 +3,5 @@ https://www.coursera.org/specializations/jhu-data-science
 
 Relevant course files can be found at:
 https://github.com/bcaffo/courses
+
 https://github.com/seankross/slides
