@@ -1,6 +1,6 @@
 # Coursera Data Science Specialization
 
-This repo contains files I created for the Coursera Johns Hopkins University Data Science Specialization course assignments:
+This repo contains files primarily related to the R programming language I created for the Coursera Johns Hopkins University Data Science Specialization course assignments:
 
 https://www.coursera.org/specializations/jhu-data-science
 
